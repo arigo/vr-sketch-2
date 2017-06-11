@@ -7,6 +7,10 @@ namespace VRSketch2
 {
     public abstract class Selection
     {
+        public const float DISTANCE_VERTEX_MIN = 0.05f;
+        public const float DISTANCE_EDGE_MIN = 0.044f;
+        public const float DISTANCE_FACE_MIN = 0.04f;
+
         public static Selection FindClosest(Vector3 point, Model model)
         {
             Selection result = VertexSelection.FindClosestVertex(point, model);
@@ -17,6 +21,7 @@ namespace VRSketch2
             return result;
         }
 
+        public abstract bool SameSelection(Selection other);
         public abstract float Distance(Vector3 point);
         public abstract void Enter(Render render);
         public abstract void Leave();
@@ -26,8 +31,13 @@ namespace VRSketch2
     {
         public Vertex vertex;
         Transform selected;
-        
-        const float DISTANCE_VERTEX_MIN = 0.05f;
+
+        public override bool SameSelection(Selection other)
+        {
+            if (!(other is VertexSelection))
+                return false;
+            return vertex == ((VertexSelection)other).vertex;
+        }
 
         static float DistanceToVertex(Vector3 v, Vector3 p)
         {
@@ -61,7 +71,7 @@ namespace VRSketch2
         public override void Enter(Render render)
         {
             selected = Object.Instantiate(render.selectedPointPrefab);
-            selected.position = vertex.position;
+            selected.position = render.world.TransformPoint(vertex.position);
         }
 
         public override void Leave()
@@ -76,7 +86,13 @@ namespace VRSketch2
         public int num;
         Transform selected;
 
-        const float DISTANCE_EDGE_MIN = 0.044f;
+        public override bool SameSelection(Selection other)
+        {
+            if (!(other is EdgeSelection))
+                return false;
+            return face == ((EdgeSelection)other).face &&
+                   num == ((EdgeSelection)other).num;
+        }
 
         static float DistanceToEdge(Vector3 v1, Vector3 v2, Vector3 p)
         {
@@ -139,13 +155,16 @@ namespace VRSketch2
             Vertex v1, v2;
             GetVertices(out v1, out v2);
 
+            Vector3 p1 = render.world.TransformPoint(v1.position);
+            Vector3 p2 = render.world.TransformPoint(v2.position);
+
             selected = Object.Instantiate(render.selectedEdgePrefab);
 
             Vector3 scale = selected.localScale;
-            scale.y = Vector3.Distance(v1.position, v2.position) * 0.5f;
+            scale.y = Vector3.Distance(p1, p2) * 0.5f;
             selected.localScale = scale;
-            selected.position = (v1.position + v2.position) * 0.5f;
-            selected.rotation = Quaternion.LookRotation(v2.position - v1.position) * Quaternion.LookRotation(Vector3.up);
+            selected.position = (p1 + p2) * 0.5f;
+            selected.rotation = Quaternion.LookRotation(p2 - p1) * Quaternion.LookRotation(Vector3.up);
         }
 
         public override void Leave()
@@ -159,7 +178,12 @@ namespace VRSketch2
         public Face face;
         FaceRenderer face_rend;
 
-        const float DISTANCE_TRIANGLE_MIN = 0.04f;
+        public override bool SameSelection(Selection other)
+        {
+            if (!(other is FaceSelection))
+                return false;
+            return face == ((FaceSelection)other).face;
+        }
 
         public override float Distance(Vector3 point)
         {
@@ -168,7 +192,7 @@ namespace VRSketch2
 
         public static FaceSelection FindClosestFace(Vector3 point, Model model)
         {
-            float distance_min = DISTANCE_TRIANGLE_MIN;
+            float distance_min = DISTANCE_FACE_MIN;
             Face closest = null;
             foreach (var face in model.faces)
             {

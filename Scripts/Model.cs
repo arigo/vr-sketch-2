@@ -69,6 +69,15 @@ namespace VRSketch2
             }
             return side != 0;
         }
+
+        public Vertex GetVertex(int index)
+        {
+            if (index < 0)
+                index += vertices.Count;
+            if (index >= vertices.Count)
+                index -= vertices.Count;
+            return vertices[index];
+        }
     }
 
 
