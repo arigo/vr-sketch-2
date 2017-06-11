@@ -55,6 +55,8 @@ namespace VRSketch2
             if (rpos.magnitude < Selection.DISTANCE_VERTEX_MIN)
             {
                 /* snap to original position */
+                foreach (var direction in directions)
+                    highlight_edges.Add(origin - direction);
                 return origin;
             }
 
