@@ -14,7 +14,7 @@ namespace VRSketch2
         public Material selectedFaceMaterial;
 
         public GameObject createPointerPrefab, movePointerPrefab;
-        public Transform moveVertexPrefab;
+        public Transform moveVertexPrefab, edgeAlignmentPrefab;
 
         public Model model;
         Dictionary<Face, FaceRenderer> face_renderers;
@@ -44,12 +44,23 @@ namespace VRSketch2
 
         void ComputeAllMeshes()
         {
+            if (face_renderers != null)
+            {
+                foreach (var face_rend in face_renderers.Values)
+                    Destroy(face_rend.gameObject);
+            }
+
             face_renderers = new Dictionary<Face, FaceRenderer>();
             foreach (var face in model.faces)
                 ComputeMesh(face);
         }
 
         void ComputeMesh(Face face)
+        {
+            GetFaceRenderer(face).ComputeMesh();
+        }
+
+        public FaceRenderer GetFaceRenderer(Face face)
         {
             FaceRenderer face_rend;
             if (!face_renderers.TryGetValue(face, out face_rend))
@@ -63,12 +74,7 @@ namespace VRSketch2
                 face_rend.face = face;
                 face_renderers[face] = face_rend;
             }
-            face_rend.ComputeMesh();
-        }
-
-        public FaceRenderer GetFaceRenderer(Face face)
-        {
-            return face_renderers[face];
+            return face_rend;
         }
 
 

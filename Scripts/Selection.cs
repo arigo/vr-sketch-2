@@ -150,6 +150,15 @@ namespace VRSketch2
             v2 = face.vertices[i];
         }
 
+        public static void PositionEdge(Transform tr, Vector3 p1, Vector3 p2)
+        {
+            Vector3 scale = tr.localScale;
+            scale.y = Vector3.Distance(p1, p2) * 0.5f;
+            tr.localScale = scale;
+            tr.position = (p1 + p2) * 0.5f;
+            tr.rotation = Quaternion.LookRotation(p2 - p1) * Quaternion.LookRotation(Vector3.up);
+        }
+
         public override void Enter(Render render)
         {
             Vertex v1, v2;
@@ -159,12 +168,7 @@ namespace VRSketch2
             Vector3 p2 = render.world.TransformPoint(v2.position);
 
             selected = Object.Instantiate(render.selectedEdgePrefab);
-
-            Vector3 scale = selected.localScale;
-            scale.y = Vector3.Distance(p1, p2) * 0.5f;
-            selected.localScale = scale;
-            selected.position = (p1 + p2) * 0.5f;
-            selected.rotation = Quaternion.LookRotation(p2 - p1) * Quaternion.LookRotation(Vector3.up);
+            PositionEdge(selected, p1, p2);
         }
 
         public override void Leave()
