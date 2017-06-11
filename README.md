@@ -10,4 +10,6 @@ How to use:
 * clone BaroqueUI from https://github.com/arigo/BaroqueUI inside
   the Assets directory, e.g. Assets\BaroqueUI
 
-* clone this repo inside the Assets directory, e.g. Assets\VRSketch2.
+* clone or move this repo inside the Assets directory, e.g. Assets\vr-sketch-2
+
+* open the scene in 'vr-sketch-2\Scenes\Scene 1'.
