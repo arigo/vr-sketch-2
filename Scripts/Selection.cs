@@ -21,9 +21,12 @@ namespace VRSketch2
             return result;
         }
 
+        public static readonly Color SELECTION_COLOR = new Color(82 / 255f, 198 / 255f, 255 / 255f);
+
         public abstract bool SameSelection(Selection other);
         public abstract float Distance(Vector3 point);
-        public abstract void Enter(Render render);
+        public abstract void Enter(Render render, Color color);
+        public abstract void Follow(Render render);
         public abstract void Leave();
     }
 
@@ -68,9 +71,14 @@ namespace VRSketch2
             return new VertexSelection { vertex = closest };
         }
 
-        public override void Enter(Render render)
+        public override void Enter(Render render, Color color)
         {
             selected = Object.Instantiate(render.selectedPointPrefab);
+            selected.GetComponent<Renderer>().material.color = color;
+        }
+
+        public override void Follow(Render render)
+        {
             selected.position = render.world.TransformPoint(vertex.position);
         }
 
@@ -153,34 +161,41 @@ namespace VRSketch2
         public static void PositionEdge(Transform tr, Vector3 p1, Vector3 p2)
         {
             Vector3 scale = tr.localScale;
-            scale.y = Vector3.Distance(p1, p2) * 0.5f;
+            scale.y = Vector3.Distance(p1, p2) * 0.5f + 0.003f;
             tr.localScale = scale;
             tr.position = (p1 + p2) * 0.5f;
             tr.rotation = Quaternion.LookRotation(p2 - p1) * Quaternion.LookRotation(Vector3.up);
         }
 
-        public override void Enter(Render render)
+        public override void Enter(Render render, Color color)
+        {
+            selected = Object.Instantiate(render.selectedEdgePrefab);
+            selected.GetComponent<Renderer>().material.color = color;
+        }
+
+        public override void Follow(Render render)
         {
             Vertex v1, v2;
             GetVertices(out v1, out v2);
 
             Vector3 p1 = render.world.TransformPoint(v1.position);
             Vector3 p2 = render.world.TransformPoint(v2.position);
-
-            selected = Object.Instantiate(render.selectedEdgePrefab);
             PositionEdge(selected, p1, p2);
         }
 
         public override void Leave()
         {
             Object.Destroy(selected.gameObject);
+            selected = null;
         }
     }
 
     public class FaceSelection : Selection
     {
         public Face face;
+        public bool color_in_face = false;
         FaceRenderer face_rend;
+        Material original_mat;
 
         public override bool SameSelection(Selection other)
         {
@@ -213,15 +228,19 @@ namespace VRSketch2
             return new FaceSelection { face = closest };
         }
 
-        public override void Enter(Render render)
+        public override void Enter(Render render, Color color)
         {
             face_rend = render.GetFaceRenderer(face);
-            face_rend.SetHighlight(render.selectedFaceMaterial);
+            original_mat = face_rend.SetHighlight(color_in_face ? null : render.selectedFaceMaterial, color);
+        }
+
+        public override void Follow(Render render)
+        {
         }
 
         public override void Leave()
         {
-            face_rend.ClearHighlight();
+            face_rend.ClearHighlight(original_mat);
         }
     }
 }

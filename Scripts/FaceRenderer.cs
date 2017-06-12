@@ -40,10 +40,10 @@ namespace VRSketch2
             for (var i = 0; i < triangulation.Length / 3; ++i)
             {
                 triangles.Add(face_vstart + triangulation[3 * i]);
-                triangles.Add(face_vstart + triangulation[3 * i + 1]);
                 triangles.Add(face_vstart + triangulation[3 * i + 2]);
-                triangles.Add(face_vstart_back + triangulation[3 * i + 2]);
+                triangles.Add(face_vstart + triangulation[3 * i + 1]);
                 triangles.Add(face_vstart_back + triangulation[3 * i + 1]);
+                triangles.Add(face_vstart_back + triangulation[3 * i + 2]);
                 triangles.Add(face_vstart_back + triangulation[3 * i]);
             }
 
@@ -57,16 +57,28 @@ namespace VRSketch2
             GetComponent<MeshFilter>().sharedMesh = mesh;
         }
 
-        public void SetHighlight(Material highlight_mat)
+        public Material SetHighlight(Material highlight_mat, Color color)
         {
             MeshRenderer mesh_rend = GetComponent<MeshRenderer>();
-            mesh_rend.sharedMaterials = new Material[] { mesh_rend.sharedMaterial, highlight_mat };
+            Material original_mat = mesh_rend.sharedMaterial;
+            if (highlight_mat != null)
+            {
+                mesh_rend.sharedMaterials = new Material[] { original_mat, highlight_mat };
+                highlight_mat = mesh_rend.materials[1];    /* local copy */
+                highlight_mat.SetColor("g_vOutlineColor", color);
+                highlight_mat.SetColor("g_vMaskedOutlineColor", Color.Lerp(color, Color.black, 189 / 255f));
+            }
+            else
+            {
+                mesh_rend.materials[0].color = color;
+            }
+            return original_mat;
         }
 
-        public void ClearHighlight()
+        public void ClearHighlight(Material original_mat)
         {
             MeshRenderer mesh_rend = GetComponent<MeshRenderer>();
-            mesh_rend.sharedMaterials = new Material[] { mesh_rend.sharedMaterial };
+            mesh_rend.sharedMaterials = new Material[] { original_mat };
         }
     }
 }

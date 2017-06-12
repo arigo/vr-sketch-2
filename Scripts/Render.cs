@@ -14,22 +14,50 @@ namespace VRSketch2
         public Material selectedFaceMaterial;
 
         public GameObject createPointerPrefab, movePointerPrefab;
-        public Transform moveVertexPrefab, edgeAlignmentPrefab;
 
         public Model model;
         Dictionary<Face, FaceRenderer> face_renderers;
 
         void Start()
         {
-            /* initial model, with just one face */
+            /* initial model, with three faces */
             model = new Model();
+
+            var vertices = new Vertex[]
+            {
+                new Vertex(0, 0.5f, 0),
+                new Vertex(1, 0.5f, 0),
+                new Vertex(1, 1, 0),
+                new Vertex(0, 1, 0),
+                new Vertex(1, 1, 1),
+                new Vertex(0, 1, 1),
+                new Vertex(1, 0.5f, 1),
+            };
+
             var face = new Face();
-            face.vertices.Add(new Vertex(0, 0.5f, 0));
-            face.vertices.Add(new Vertex(1, 0.5f, 0));
-            face.vertices.Add(new Vertex(1, 1, 0));
-            face.vertices.Add(new Vertex(0, 1, 0));
+            face.vertices.Add(vertices[0]);
+            face.vertices.Add(vertices[1]);
+            face.vertices.Add(vertices[2]);
+            face.vertices.Add(vertices[3]);
             face.plane = new Plane(new Vector3(0, 0, 1), new Vector3(0, 1, 0));
             model.faces.Add(face);
+
+            face = new Face();
+            face.vertices.Add(vertices[3]);
+            face.vertices.Add(vertices[2]);
+            face.vertices.Add(vertices[4]);
+            face.vertices.Add(vertices[5]);
+            face.plane = new Plane(new Vector3(0, 1, 0), new Vector3(0, 1, 0));
+            model.faces.Add(face);
+
+            face = new Face();
+            face.vertices.Add(vertices[1]);
+            face.vertices.Add(vertices[2]);
+            face.vertices.Add(vertices[4]);
+            face.vertices.Add(vertices[6]);
+            face.plane = new Plane(new Vector3(1, 0, 0), new Vector3(1, 1, 0));
+            model.faces.Add(face);
+
 
             ComputeAllMeshes();
 
@@ -80,24 +108,20 @@ namespace VRSketch2
 
         /* ============  Controller interaction  ============ */
 
-        Selection FindClosest(Controller controller)
-        {
-            return Selection.FindClosest(world.InverseTransformPoint(controller.position), model);
-        }
-
         private float ComputePriority(Controller controller)
         {
-            Selection sel = FindClosest(controller);
+            Vector3 point = world.InverseTransformPoint(controller.position);
+            Selection sel = Selection.FindClosest(point, model);
             if (sel == null)
                 return float.NegativeInfinity;
-            return -sel.Distance(controller.position);
+            return -sel.Distance(point);
         }
 
         private void Ht_onMoveOver(Controller controller)
         {
             ControllerMode.Get(controller).UpdatePointer(this);
 
-            Selection sel = FindClosest(controller);
+            Selection sel = Selection.FindClosest(world.InverseTransformPoint(controller.position), model);
             var cm = ControllerMode.Get(controller);
             if (sel == null ? cm.current_sel == null : sel.SameSelection(cm.current_sel))
                 return;
@@ -107,7 +131,8 @@ namespace VRSketch2
             if (sel != null)
             {
                 cm.current_sel = sel;
-                sel.Enter(this);
+                sel.Enter(this, Selection.SELECTION_COLOR);
+                sel.Follow(this);
             }
         }
 

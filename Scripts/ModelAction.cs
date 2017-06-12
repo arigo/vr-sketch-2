@@ -8,21 +8,72 @@ namespace VRSketch2
 {
     public class ModelAction
     {
-        public virtual void Drag() { }
-        public virtual void Stop() { }
+        public Render render;
+
+        public virtual void Drag()
+        {
+            /* usually overridden */
+        }
+
+        public virtual void Stop()
+        {
+            SelectionFinished();
+        }
+
+        struct TempSel { public Selection sel; public Color col; }
+        List<TempSel> temp_selection = new List<TempSel>();
+        List<TempSel> temp_added = new List<TempSel>();
+
+        protected void AddSelection(Selection sel, Color color)
+        {
+            temp_added.Add(new TempSel { sel = sel, col = color });
+        }
+
+        protected void SelectionFinished()
+        {
+            /* NB. all Leave() must be done before all Enter() 
+             */
+            int keep_common = 0;
+            while (keep_common < temp_selection.Count && keep_common < temp_added.Count)
+            {
+                TempSel t1 = temp_selection[keep_common];
+                TempSel t2 = temp_added[keep_common];
+                if (t1.col != t2.col || !t1.sel.SameSelection(t2.sel))
+                    break;
+                keep_common++;
+            }
+
+            while (temp_selection.Count > keep_common)
+            {
+                TempSel tmp = temp_selection[temp_selection.Count - 1];
+                temp_selection.RemoveAt(temp_selection.Count - 1);
+                tmp.sel.Leave();
+            }
+
+            for (int i = keep_common; i < temp_added.Count; i++)
+            {
+                TempSel tmp = temp_added[i];
+                tmp.sel.Enter(render, tmp.col);
+                temp_selection.Add(tmp);
+            }
+            temp_added.Clear();
+
+            foreach (var tmp in temp_selection)
+                tmp.sel.Follow(render);
+        }
     }
 
 
     public class MoveVertexAction : ModelAction
     {
-        Render render;
+        public static readonly Color COLOR = new Color(255/255f, 96/255f, 255/255f);
+
         Controller ctrl;
         Vertex vertex;
-        Transform move_point;
         Vector3 origin;
-        List<Vector3> directions;
+        struct TempEdge { public EdgeSelection sel; public Vector3 direction; }
+        List<TempEdge> edges;
         List<FaceRenderer> face_rends;
-        List<Transform> highlight_edges;
 
         public MoveVertexAction(Render render, Controller ctrl, VertexSelection sel)
         {
@@ -31,117 +82,98 @@ namespace VRSketch2
             vertex = sel.vertex;
 
             origin = vertex.position;
-            directions = new List<Vector3>();
+            edges = new List<TempEdge>();
             face_rends = new List<FaceRenderer>();
             foreach (var face in render.model.faces)
             {
                 int i = face.vertices.IndexOf(vertex);
                 if (i >= 0)
                 {
-                    directions.Add(origin - face.GetVertex(i - 1).position);
-                    directions.Add(origin - face.GetVertex(i + 1).position);
+                    edges.Add(new TempEdge
+                    {
+                        sel = new EdgeSelection { face = face, num = i > 0 ? i - 1 : face.vertices.Count - 1 },
+                        direction = origin - face.GetVertex(i - 1).position
+                    });
+                    edges.Add(new TempEdge
+                    {
+                        sel = new EdgeSelection { face = face, num = i },
+                        direction = origin - face.GetVertex(i + 1).position
+                    });
                     face_rends.Add(render.GetFaceRenderer(face));
                 }
             }
-
-            move_point = Object.Instantiate(render.moveVertexPrefab);
-            highlight_edges = new List<Transform>();
         }
 
-        Vector3 SnapPosition(Vector3 pos, List<Vector3> highlight_edges)
+        Vector3 SnapPosition(Vector3 pos)
         {
             Vector3 rpos = pos - origin;
 
             if (rpos.magnitude < Selection.DISTANCE_VERTEX_MIN)
             {
                 /* snap to original position */
-                foreach (var direction in directions)
-                    highlight_edges.Add(origin - direction);
+                foreach (var edge in edges)
+                    AddSelection(edge.sel, Color.Lerp(Color.black, COLOR, 0.7f));
                 return origin;
             }
 
             /* try to snap to a direction */
             float closest = Selection.DISTANCE_EDGE_MIN;
             Vector3 closest_rpos = Vector3.zero;
-            Vector3 closest_direction = Vector3.zero;
+            Selection closest_edge = null;
 
-            foreach (var direction in directions)
+            foreach (var edge in edges)
             {
-                Vector3 test_rpos = Vector3.Project(rpos, direction);
+                Vector3 test_rpos = Vector3.Project(rpos, edge.direction);
                 float distance = Vector3.Distance(rpos, test_rpos);
                 if (distance < closest)
                 {
                     closest = distance * 0.99f;
                     closest_rpos = test_rpos;
-                    closest_direction = direction;
+                    closest_edge = edge.sel;
                 }
             }
-            if (closest_rpos != Vector3.zero)
+            if (closest_edge != null)
             {
-                highlight_edges.Add(origin - closest_direction);
+                AddSelection(closest_edge, COLOR);
                 return closest_rpos + origin;
             }
 
             /* try to snap to a plane */
             closest = Selection.DISTANCE_FACE_MIN;
             closest_rpos = Vector3.zero;
-            int closest_i = -1;
+            Face closest_face = null;
 
-            for (int i = 0; i < directions.Count; i += 2)
+            for (int i = 0; i < edges.Count; i += 2)
             {
-                Vector3 plane_normal = Vector3.Cross(directions[i], directions[i + 1]);
+                Vector3 plane_normal = Vector3.Cross(edges[i].direction, edges[i + 1].direction);
                 Vector3 test_rpos = Vector3.ProjectOnPlane(rpos, plane_normal);
                 float distance = Vector3.Distance(rpos, test_rpos);
                 if (distance < closest)
                 {
                     closest = distance * 0.99f;
                     closest_rpos = test_rpos;
-                    closest_i = i;
+                    closest_face = edges[i].sel.face;
                 }
             }
             if (closest_rpos != Vector3.zero)
             {
-                highlight_edges.Add(origin - directions[closest_i]);
-                highlight_edges.Add(origin - directions[closest_i + 1]);
+                AddSelection(new FaceSelection { face = closest_face, color_in_face = true }, COLOR);
                 return closest_rpos + origin;
             }
 
             return pos;   /* no snapping */
         }
 
-        void SetHighlightCount(int count)
-        {
-            while (highlight_edges.Count > count)
-            {
-                Object.Destroy(highlight_edges[highlight_edges.Count - 1].gameObject);
-                highlight_edges.RemoveAt(highlight_edges.Count - 1);
-            }
-            while (highlight_edges.Count < count)
-            {
-                highlight_edges.Add(Object.Instantiate(render.edgeAlignmentPrefab));
-            }
-        }
-
         public override void Drag()
         {
             Vector3 pos = render.world.InverseTransformPoint(ctrl.position);
-            var hedges = new List<Vector3>();
-            pos = SnapPosition(pos, hedges);
-            move_point.position = render.world.TransformPoint(pos);
+            pos = SnapPosition(pos);
             vertex.position = pos;
             foreach (var face_rend in face_rends)
                 face_rend.ComputeMesh();
 
-            SetHighlightCount(hedges.Count);
-            for (int i = 0; i < hedges.Count; i++)
-                EdgeSelection.PositionEdge(highlight_edges[i], render.world.TransformPoint(hedges[i]),
-                                           move_point.position);
-        }
-
-        public override void Stop()
-        {
-            Object.Destroy(move_point.gameObject);
-            SetHighlightCount(0);
+            AddSelection(new VertexSelection { vertex = vertex }, COLOR);
+            SelectionFinished();
         }
     }
 }
