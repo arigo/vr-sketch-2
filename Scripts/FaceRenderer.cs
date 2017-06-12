@@ -12,6 +12,8 @@ namespace VRSketch2
 
         public void ComputeMesh()
         {
+            face.RecomputePlane();
+
             var vpositions = new List<Vector3>();
             var vnormals = new List<Vector3>();
             var triangles = new List<int>();
@@ -33,7 +35,8 @@ namespace VRSketch2
 
             /* cast the vertexes on the 2D plane, so we can compute triangulation. */
             var uvs = face.ProjectOnPlane();
-            var triangulation = new Triangulator(uvs).Triangulate();
+            var triangulator = new Triangulator(uvs);
+            var triangulation = triangulator.Triangulate();
 
             /* 'triangles' are given two copies of triangulation going different way
                 and having different vertexes */
@@ -66,7 +69,7 @@ namespace VRSketch2
                 mesh_rend.sharedMaterials = new Material[] { original_mat, highlight_mat };
                 highlight_mat = mesh_rend.materials[1];    /* local copy */
                 highlight_mat.SetColor("g_vOutlineColor", color);
-                highlight_mat.SetColor("g_vMaskedOutlineColor", Color.Lerp(color, Color.black, 189 / 255f));
+                highlight_mat.SetColor("g_vMaskedOutlineColor", Color.Lerp(Color.black, color, 189 / 255f));
             }
             else
             {

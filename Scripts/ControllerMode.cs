@@ -60,12 +60,22 @@ namespace VRSketch2
             switch (mode)
             {
                 case EMode.Create:
+                    if (sel is EdgeSelection)
+                    {
+                        current_action = new ExtrudeEdgeAction(render, controller, (EdgeSelection)sel);
+                        return;
+                    }
                     break;
 
                 case EMode.Move:
                     if (sel is VertexSelection)
                     {
                         current_action = new MoveVertexAction(render, controller, (VertexSelection)sel);
+                        return;
+                    }
+                    if (sel is EdgeSelection)
+                    {
+                        current_action = new MoveEdgeAction(render, controller, (EdgeSelection)sel);
                         return;
                     }
                     break;

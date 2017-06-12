@@ -39,7 +39,6 @@ namespace VRSketch2
             face.vertices.Add(vertices[1]);
             face.vertices.Add(vertices[2]);
             face.vertices.Add(vertices[3]);
-            face.plane = new Plane(new Vector3(0, 0, 1), new Vector3(0, 1, 0));
             model.faces.Add(face);
 
             face = new Face();
@@ -47,7 +46,6 @@ namespace VRSketch2
             face.vertices.Add(vertices[2]);
             face.vertices.Add(vertices[4]);
             face.vertices.Add(vertices[5]);
-            face.plane = new Plane(new Vector3(0, 1, 0), new Vector3(0, 1, 0));
             model.faces.Add(face);
 
             face = new Face();
@@ -55,7 +53,6 @@ namespace VRSketch2
             face.vertices.Add(vertices[2]);
             face.vertices.Add(vertices[4]);
             face.vertices.Add(vertices[6]);
-            face.plane = new Plane(new Vector3(1, 0, 0), new Vector3(1, 1, 0));
             model.faces.Add(face);
 
 

@@ -5,10 +5,17 @@ using System.Collections.Generic;
 public class Triangulator
 {
     private List<Vector2> m_points = new List<Vector2>();
+    float m_area;
+
+    public bool positiveOrientation
+    {
+        get { return m_area > 0; }
+    }
 
     public Triangulator(Vector2[] points)
     {
         m_points = new List<Vector2>(points);
+        m_area = Area();
     }
 
     public int[] Triangulate()
@@ -20,7 +27,7 @@ public class Triangulator
             return indices.ToArray();
 
         int[] V = new int[n];
-        if (Area() > 0)
+        if (m_area > 0)
         {
             for (int v = 0; v < n; v++)
                 V[v] = v;

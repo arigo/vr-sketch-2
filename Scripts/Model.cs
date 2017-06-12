@@ -25,12 +25,18 @@ namespace VRSketch2
         public Plane plane;
         public List<Vertex> vertices = new List<Vertex>();
 
+        int _counter;
+        static int _COUNTER = 0;
+
+        public Face() { _counter = ++_COUNTER; }
+        public override string ToString() { return "<Face " + _counter + ">"; }
+
         Vector3 plane1, plane2;
 
         public Vector2[] ProjectOnPlane()
         {
             Vector3 normal = plane.normal;
-            if (normal.y < Mathf.Max(normal.x, normal.z))
+            if (Mathf.Abs(normal.y) < Mathf.Max(normal.x, normal.z))
                 plane1 = new Vector3(0, 1, 0);
             else
                 plane1 = new Vector3(1, 0, 0);
@@ -70,13 +76,23 @@ namespace VRSketch2
             return side != 0;
         }
 
-        public Vertex GetVertex(int index)
+        public int VertexNum(int index)
         {
             if (index < 0)
-                index += vertices.Count;
+                index = vertices.Count - ((-index) % vertices.Count);
             if (index >= vertices.Count)
-                index -= vertices.Count;
-            return vertices[index];
+                index %= vertices.Count;
+            return index;
+        }
+
+        public Vertex GetVertex(int index)
+        {
+            return vertices[VertexNum(index)];
+        }
+
+        public void RecomputePlane()
+        {
+            plane = PlaneRecomputer.RecomputePlane(vertices);
         }
     }
 
