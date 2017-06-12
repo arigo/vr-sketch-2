@@ -60,28 +60,67 @@ namespace VRSketch2
             GetComponent<MeshFilter>().sharedMesh = mesh;
         }
 
-        public Material SetHighlight(Material highlight_mat, Color color)
+        class TempHighlight
+        {
+            public Material mat;
+            public Color col;
+            public bool active;
+            public TempHighlight prev;
+        }
+        TempHighlight temp_highlight;
+        Material original_mat;
+
+        public object SetHighlight(Material highlight_mat, Color color)
+        {
+            if (original_mat == null)
+            {
+                MeshRenderer mesh_rend = GetComponent<MeshRenderer>();
+                original_mat = mesh_rend.sharedMaterial;
+            }
+            temp_highlight = new TempHighlight { mat = highlight_mat, col = color, active = true, prev = temp_highlight };
+            RefreshHighlight();
+            return temp_highlight;
+        }
+
+        void RefreshHighlight()
         {
             MeshRenderer mesh_rend = GetComponent<MeshRenderer>();
-            Material original_mat = mesh_rend.sharedMaterial;
-            if (highlight_mat != null)
+            if (temp_highlight.mat != null)
             {
-                mesh_rend.sharedMaterials = new Material[] { original_mat, highlight_mat };
-                highlight_mat = mesh_rend.materials[1];    /* local copy */
-                highlight_mat.SetColor("g_vOutlineColor", color);
-                highlight_mat.SetColor("g_vMaskedOutlineColor", Color.Lerp(Color.black, color, 189 / 255f));
+                mesh_rend.sharedMaterials = new Material[] { original_mat, temp_highlight.mat };
+                Material highlight_mat = mesh_rend.materials[1];    /* local copy */
+                highlight_mat.SetColor("g_vOutlineColor", temp_highlight.col);
+                highlight_mat.SetColor("g_vMaskedOutlineColor", Color.Lerp(Color.black, temp_highlight.col, 189 / 255f));
             }
             else
             {
-                mesh_rend.materials[0].color = color;
+                mesh_rend.materials[0].color = temp_highlight.col;
             }
-            return original_mat;
         }
 
-        public void ClearHighlight(Material original_mat)
+        public void ClearHighlight(object remove_highlight)
         {
-            MeshRenderer mesh_rend = GetComponent<MeshRenderer>();
-            mesh_rend.sharedMaterials = new Material[] { original_mat };
+            TempHighlight tmp = (TempHighlight)remove_highlight;
+            tmp.active = false;
+            if (tmp != temp_highlight)
+                return;
+
+            while (true)
+            {
+                temp_highlight = temp_highlight.prev;
+                if (temp_highlight == null)
+                {
+                    MeshRenderer mesh_rend = GetComponent<MeshRenderer>();
+                    mesh_rend.sharedMaterials = new Material[] { original_mat };
+                    original_mat = null;
+                    break;
+                }
+                if (temp_highlight.active)
+                {
+                    RefreshHighlight();
+                    break;
+                }
+            }
         }
     }
 }

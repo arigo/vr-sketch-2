@@ -28,12 +28,18 @@ namespace VRSketch2
         public abstract void Enter(Render render, Color color);
         public abstract void Follow(Render render);
         public abstract void Leave();
+        public abstract Selection Clone();
     }
 
     public class VertexSelection : Selection
     {
         public Vertex vertex;
         Transform selected;
+
+        public override Selection Clone()
+        {
+            return new VertexSelection { vertex = vertex };
+        }
 
         public override bool SameSelection(Selection other)
         {
@@ -93,6 +99,11 @@ namespace VRSketch2
         public Face face;
         public int num;
         Transform selected;
+
+        public override Selection Clone()
+        {
+            return new EdgeSelection { face = face, num = num };
+        }
 
         public override bool SameSelection(Selection other)
         {
@@ -195,7 +206,12 @@ namespace VRSketch2
         public Face face;
         public bool color_in_face = false;
         FaceRenderer face_rend;
-        Material original_mat;
+        object highlight_token;
+
+        public override Selection Clone()
+        {
+            return new FaceSelection { face = face, color_in_face = color_in_face };
+        }
 
         public override bool SameSelection(Selection other)
         {
@@ -231,7 +247,7 @@ namespace VRSketch2
         public override void Enter(Render render, Color color)
         {
             face_rend = render.GetFaceRenderer(face);
-            original_mat = face_rend.SetHighlight(color_in_face ? null : render.selectedFaceMaterial, color);
+            highlight_token = face_rend.SetHighlight(color_in_face ? null : render.selectedFaceMaterial, color);
         }
 
         public override void Follow(Render render)
@@ -240,7 +256,7 @@ namespace VRSketch2
 
         public override void Leave()
         {
-            face_rend.ClearHighlight(original_mat);
+            face_rend.ClearHighlight(highlight_token);
         }
     }
 }

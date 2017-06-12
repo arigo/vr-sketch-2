@@ -60,6 +60,7 @@ namespace VRSketch2
             for (int i = keep_common; i < temp_added.Count; i++)
             {
                 TempSel tmp = temp_added[i];
+                tmp.sel = tmp.sel.Clone();
                 tmp.sel.Enter(render, tmp.col);
                 temp_selection.Add(tmp);
             }

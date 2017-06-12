@@ -12,7 +12,7 @@ namespace VRSketch2
 
         Vertex vertex;
         Vector3 origin;
-        struct TempEdge { public EdgeSelection sel; public Vector3 direction; }
+        struct TempEdge { public EdgeSelection sel; public Vertex far_vertex; public Vector3 direction; }
         List<TempEdge> edges;
         List<FaceRenderer> face_rends;
 
@@ -31,12 +31,14 @@ namespace VRSketch2
                 {
                     edges.Add(new TempEdge
                     {
-                        sel = new EdgeSelection { face = face, num = i > 0 ? i - 1 : face.vertices.Count - 1 },
+                        sel = new EdgeSelection { face = face, num = face.VertexNum(i - 1) },
+                        far_vertex = face.GetVertex(i - 1),
                         direction = origin - face.GetVertex(i - 1).position
                     });
                     edges.Add(new TempEdge
                     {
                         sel = new EdgeSelection { face = face, num = i },
+                        far_vertex = face.GetVertex(i + 1),
                         direction = origin - face.GetVertex(i + 1).position
                     });
                     face_rends.Add(render.GetFaceRenderer(face));
@@ -63,7 +65,8 @@ namespace VRSketch2
 
             foreach (var edge in edges)
             {
-                Vector3 test_rpos = Vector3.Project(rpos, edge.direction);
+                Vector3 shift = edge.direction - (origin - edge.far_vertex.position);
+                Vector3 test_rpos = Vector3.Project(rpos - shift, edge.direction) + shift;
                 float distance = Vector3.Distance(rpos, test_rpos);
                 if (distance < closest)
                 {

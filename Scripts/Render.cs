@@ -59,6 +59,7 @@ namespace VRSketch2
             ComputeAllMeshes();
 
             var ht = Controller.HoverTracker(this);
+            ht.isConcurrent = true;
             ht.computePriority = ComputePriority;
             ht.onMoveOver += Ht_onMoveOver;
             ht.onLeave += Ht_onLeave;
@@ -127,6 +128,7 @@ namespace VRSketch2
 
             if (sel != null)
             {
+                sel = sel.Clone();
                 cm.current_sel = sel;
                 sel.Enter(this, Selection.SELECTION_COLOR);
                 sel.Follow(this);
