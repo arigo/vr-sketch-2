@@ -9,12 +9,15 @@ namespace VRSketch2
     public class ModelAction
     {
         public Render render;
-        public Controller ctrl;
+        public Controller ctrl, other_ctrl;
 
         protected ModelAction(Render render, Controller ctrl)
         {
             this.render = render;
             this.ctrl = ctrl;
+
+            Controller[] controllers = Baroque.GetControllers();
+            other_ctrl = controllers[1 - ctrl.index];
         }
 
         public virtual void Drag()
@@ -25,6 +28,7 @@ namespace VRSketch2
         public virtual void Stop()
         {
             SelectionFinished();
+            other_ctrl.SetPointer("");
         }
 
         struct TempSel { public Selection sel; public Color col; }

@@ -9,6 +9,7 @@ namespace VRSketch2
     public class MoveVertexAction : ModelAction
     {
         public static readonly Color COLOR = new Color(255 / 255f, 96 / 255f, 255 / 255f);
+        public static readonly Color GUIDE_COLOR = new Color(255 / 255f, 248 / 255f, 96 / 255f);
 
         Vertex vertex;
         Vector3 origin;
@@ -46,16 +47,16 @@ namespace VRSketch2
             }
         }
 
-        Vector3 SnapPosition(Vector3 pos)
+        Subspace SnapPosition(Vector3 pos)
         {
             Vector3 rpos = pos - origin;
 
             if (rpos.magnitude < Selection.DISTANCE_VERTEX_MIN)
             {
                 /* snap to original position */
-                foreach (var edge in edges)
-                    AddSelection(edge.sel, Darker(COLOR));
-                return origin;
+                //foreach (var edge in edges)
+                //    AddSelection(new VertexSelection { vertex = edge.far_vertex }, Darker(Selection.SELECTION_COLOR));
+                return new Subspace0();
             }
 
             /* try to snap to a direction */
@@ -78,45 +79,104 @@ namespace VRSketch2
             if (closest_edge != null)
             {
                 AddSelection(closest_edge, COLOR);
-                return closest_rpos + origin;
+                return new Subspace1(closest_rpos);
             }
 
             /* try to snap to a plane */
             closest = Selection.DISTANCE_FACE_MIN;
-            closest_rpos = Vector3.zero;
+            Vector3 closest_normal = Vector3.zero;
             Face closest_face = null;
 
             for (int i = 0; i < edges.Count; i += 2)
             {
                 Vector3 plane_normal = Vector3.Cross(edges[i].direction, edges[i + 1].direction);
-                Vector3 test_rpos = Vector3.ProjectOnPlane(rpos, plane_normal);
-                float distance = Vector3.Distance(rpos, test_rpos);
+                plane_normal.Normalize();
+                float distance = Mathf.Abs(Vector3.Dot(rpos, plane_normal));
                 if (distance < closest)
                 {
                     closest = distance * 0.99f;
-                    closest_rpos = test_rpos;
                     closest_face = edges[i].sel.face;
+                    closest_normal = plane_normal;
                 }
             }
-            if (closest_rpos != Vector3.zero)
+            if (closest_face != null)
             {
                 AddSelection(new FaceSelection { face = closest_face, color_in_face = true }, COLOR);
-                return closest_rpos + origin;
+                return new Subspace2(closest_normal);
             }
 
-            return pos;   /* no snapping */
+            return new Subspace3();   /* no snapping */
         }
 
         public override void Drag()
         {
             Vector3 pos = render.world.InverseTransformPoint(ctrl.position);
-            pos = SnapPosition(pos);
+            var subspace = SnapPosition(pos);
+            var ptsubspace = new PointedSubspace(subspace, origin);
+
+            Vector3 otherpos = render.world.InverseTransformPoint(other_ctrl.position);
+            Selection othersel = Selection.FindClosest(otherpos, render.model, color_in_face: true);
+            Vector3? dummyedge_from = null;
+            if (othersel != null)
+            {
+                AddSelection(othersel, GUIDE_COLOR);
+
+                if (!othersel.ContainsVertex(vertex))
+                {
+                    PointedSubspace otherptsubspace = othersel.GetPointedSubspace();
+
+                    if (othersel is VertexSelection)
+                    {
+                        var foot = ((VertexSelection)othersel).vertex.position;
+                        otherptsubspace = new PointedSubspace(subspace.NormalSubspace(), foot);
+                    }
+                    else if (othersel is EdgeSelection)
+                    {
+                        Vertex v1, v2;
+                        ((EdgeSelection)othersel).GetVertices(out v1, out v2);
+                        Vector3 foot1 = v1.position;
+                        Vector3 foot2 = v2.position;
+
+                        Subspace orthogonal_plane = new Subspace2(foot2 - foot1);
+                        var ptsub1 = new PointedSubspace(orthogonal_plane, foot1);
+                        var ptsub2 = new PointedSubspace(orthogonal_plane, foot2);
+
+                        var dist0 = otherptsubspace.Distance(pos);
+                        var dist1 = ptsub1.Distance(pos);
+                        var dist2 = ptsub2.Distance(pos);
+
+                        if (dist1 <= dist0 && dist1 <= dist2)
+                        {
+                            otherptsubspace = ptsub1;
+                            othersel = new VertexSelection { vertex = v1 };
+                        }
+                        else if (dist2 <= dist0 && dist2 <= dist1)
+                        {
+                            otherptsubspace = ptsub2;
+                            othersel = new VertexSelection { vertex = v2 };
+                        }
+                    }
+
+                    if (otherptsubspace.Distance(pos) < Selection.DISTANCE_VERTEX_MIN)
+                    {
+                        ptsubspace = ptsubspace.IntersectedWith(otherptsubspace);
+                        dummyedge_from = othersel.Center();
+                    }
+                }
+            }
+
+            pos = ptsubspace.Snap(pos);
             vertex.position = pos;
             foreach (var face_rend in face_rends)
                 face_rend.ComputeMesh();
 
-            AddSelection(new VertexSelection { vertex = vertex }, COLOR);
+            if (dummyedge_from.HasValue)
+                AddSelection(EdgeSelection.DummyEdgeSelection(dummyedge_from.Value, pos), GUIDE_COLOR);
+            AddSelection(new VertexSelection { vertex = vertex }, subspace is Subspace0 ? Darker(COLOR) : COLOR);
             SelectionFinished();
+
+            if (other_ctrl.CurrentHoverTracker() == null)
+                ControllerMode.Get(other_ctrl).UpdatePointer(render, EMode.Guide);
         }
     }
 }

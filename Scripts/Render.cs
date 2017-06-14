@@ -13,7 +13,7 @@ namespace VRSketch2
         public Transform selectedPointPrefab, selectedEdgePrefab;
         public Material selectedFaceMaterial;
 
-        public GameObject createPointerPrefab, movePointerPrefab;
+        public GameObject createPointerPrefab, movePointerPrefab, guidePointerPrefab;
 
         public Model model;
         Dictionary<Face, FaceRenderer> face_renderers;
@@ -59,7 +59,6 @@ namespace VRSketch2
             ComputeAllMeshes();
 
             var ht = Controller.HoverTracker(this);
-            ht.isConcurrent = true;
             ht.computePriority = ComputePriority;
             ht.onMoveOver += Ht_onMoveOver;
             ht.onLeave += Ht_onLeave;

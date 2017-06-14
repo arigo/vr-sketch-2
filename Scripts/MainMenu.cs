@@ -41,21 +41,20 @@ namespace VRSketch2
         {
             var menu = new Menu
             {
-                ModeChoice("Creation mode", controller, EMode.Create),
-                ModeChoice("Movement mode", controller, EMode.Move),
+                ModeChoice("Creation mode", EMode.Create),
+                ModeChoice("Movement mode", EMode.Move),
             };
             menu.MakePopup(controller, gameObject);
         }
 
-        private Menu.Item ModeChoice(string text, Controller controller, EMode mode)
+        private Menu.Item ModeChoice(string text, EMode mode)
         {
-            var cm = ControllerMode.Get(controller);
-            if (cm.mode == mode)
+            if (ControllerMode.CurrentMode() == mode)
                 text = "✔ " + text;
             return new Menu.Item
             {
                 text = text,
-                onClick = () => cm.ChangeMode(mode),
+                onClick = () => ControllerMode.ChangeMode(mode),
             };
         }
     }

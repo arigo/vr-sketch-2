@@ -11,13 +11,13 @@ namespace VRSketch2
         public const float DISTANCE_EDGE_MIN = 0.044f;
         public const float DISTANCE_FACE_MIN = 0.04f;
 
-        public static Selection FindClosest(Vector3 point, Model model)
+        public static Selection FindClosest(Vector3 point, Model model, bool color_in_face = false)
         {
             Selection result = VertexSelection.FindClosestVertex(point, model);
             if (result == null)
                 result = EdgeSelection.FindClosestEdge(point, model);
             if (result == null)
-                result = FaceSelection.FindClosestFace(point, model);
+                result = FaceSelection.FindClosestFace(point, model, color_in_face);
             return result;
         }
 
@@ -29,6 +29,9 @@ namespace VRSketch2
         public abstract void Follow(Render render);
         public abstract void Leave();
         public abstract Selection Clone();
+        public abstract bool ContainsVertex(Vertex v);
+        public abstract PointedSubspace GetPointedSubspace();
+        public abstract Vector3 Center();
     }
 
     public class VertexSelection : Selection
@@ -56,6 +59,16 @@ namespace VRSketch2
         public override float Distance(Vector3 point)
         {
             return DistanceToVertex(vertex.position, point);
+        }
+
+        public override bool ContainsVertex(Vertex v)
+        {
+            return v == vertex;
+        }
+
+        public override Vector3 Center()
+        {
+            return vertex.position;
         }
 
         public static VertexSelection FindClosestVertex(Vector3 point, Model model)
@@ -92,6 +105,11 @@ namespace VRSketch2
         {
             Object.Destroy(selected.gameObject);
         }
+
+        public override PointedSubspace GetPointedSubspace()
+        {
+            return new PointedSubspace(new Subspace0(), vertex.position);
+        }
     }
 
     public class EdgeSelection : Selection
@@ -99,6 +117,14 @@ namespace VRSketch2
         public Face face;
         public int num;
         Transform selected;
+
+        static public EdgeSelection DummyEdgeSelection(Vector3 v1, Vector3 v2)
+        {
+            var dummy_face = new Face();
+            dummy_face.vertices.Add(new Vertex(v1));
+            dummy_face.vertices.Add(new Vertex(v2));
+            return new EdgeSelection { face = dummy_face, num = 0 };
+        }
 
         public override Selection Clone()
         {
@@ -129,6 +155,20 @@ namespace VRSketch2
             Vertex v1, v2;
             GetVertices(out v1, out v2);
             return DistanceToEdge(v1.position, v2.position, point);
+        }
+
+        public override bool ContainsVertex(Vertex v)
+        {
+            Vertex v1, v2;
+            GetVertices(out v1, out v2);
+            return v == v1 || v == v2;
+        }
+
+        public override Vector3 Center()
+        {
+            Vertex v1, v2;
+            GetVertices(out v1, out v2);
+            return (v1.position + v2.position) * 0.5f;
         }
 
         public static EdgeSelection FindClosestEdge(Vector3 point, Model model)
@@ -175,7 +215,8 @@ namespace VRSketch2
             scale.y = Vector3.Distance(p1, p2) * 0.5f + 0.003f;
             tr.localScale = scale;
             tr.position = (p1 + p2) * 0.5f;
-            tr.rotation = Quaternion.LookRotation(p2 - p1) * Quaternion.LookRotation(Vector3.up);
+            if (p1 != p2)
+                tr.rotation = Quaternion.LookRotation(p2 - p1) * Quaternion.LookRotation(Vector3.up);
         }
 
         public override void Enter(Render render, Color color)
@@ -198,6 +239,13 @@ namespace VRSketch2
         {
             Object.Destroy(selected.gameObject);
             selected = null;
+        }
+
+        public override PointedSubspace GetPointedSubspace()
+        {
+            Vertex v1, v2;
+            GetVertices(out v1, out v2);
+            return new PointedSubspace(new Subspace1(v2.position - v1.position), v1.position);
         }
     }
 
@@ -225,7 +273,23 @@ namespace VRSketch2
             return face.plane.GetDistanceToPoint(point);
         }
 
-        public static FaceSelection FindClosestFace(Vector3 point, Model model)
+        public override bool ContainsVertex(Vertex v)
+        {
+            foreach (Vertex vertex in face.vertices)
+                if (v == vertex)
+                    return true;
+            return false;
+        }
+
+        public override Vector3 Center()
+        {
+            Vector3 sum = Vector3.zero;
+            foreach (Vertex vertex in face.vertices)
+                sum += vertex.position;
+            return sum / face.vertices.Count;
+        }
+
+        public static FaceSelection FindClosestFace(Vector3 point, Model model, bool color_in_face = false)
         {
             float distance_min = DISTANCE_FACE_MIN;
             Face closest = null;
@@ -241,7 +305,7 @@ namespace VRSketch2
 
             if (closest == null)
                 return null;
-            return new FaceSelection { face = closest };
+            return new FaceSelection { face = closest, color_in_face = color_in_face };
         }
 
         public override void Enter(Render render, Color color)
@@ -257,6 +321,12 @@ namespace VRSketch2
         public override void Leave()
         {
             face_rend.ClearHighlight(highlight_token);
+        }
+
+        public override PointedSubspace GetPointedSubspace()
+        {
+            Vector3 foot = face.plane.distance * face.plane.normal;
+            return new PointedSubspace(new Subspace2(face.plane.normal), foot);
         }
     }
 }

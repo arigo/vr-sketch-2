@@ -6,11 +6,12 @@ using BaroqueUI;
 
 namespace VRSketch2
 {
-    public enum EMode { Create, Move };
+    public enum EMode { Create, Move, Guide };
 
     public class ControllerMode
     {
-        public EMode mode = EMode.Move;
+        static EMode mode = EMode.Move;
+
         public Controller controller;
         public Selection current_sel;
         public ModelAction current_action;
@@ -33,7 +34,7 @@ namespace VRSketch2
             }
         }
 
-        public void UpdatePointer(Render render)
+        public void UpdatePointer(Render render, EMode mode)
         {
             GameObject prefab = null;
 
@@ -41,16 +42,33 @@ namespace VRSketch2
             {
                 case EMode.Create: prefab = render.createPointerPrefab; break;
                 case EMode.Move: prefab = render.movePointerPrefab; break;
+                case EMode.Guide: prefab = render.guidePointerPrefab; break;
             }
             controller.SetPointer(prefab);
         }
 
-        public void ChangeMode(EMode new_mode)
+        public void UpdatePointer(Render render)
         {
-            StopAction();
-            Leave();
+            UpdatePointer(render, mode);
+        }
+
+        static public EMode CurrentMode()
+        {
+            return mode;
+        }
+
+        static public void ChangeMode(EMode new_mode)
+        {
+            foreach (var cm in controller_mode)
+            {
+                if (cm != null)
+                {
+                    cm.StopAction();
+                    cm.Leave();
+                    /* will be re-entered automatically */
+                }
+            }
             mode = new_mode;
-            /* will be re-entered automatically */
         }
 
         public void StartAction(Render render, Selection sel)
