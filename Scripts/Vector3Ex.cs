@@ -36,6 +36,8 @@ namespace VRSketch2
 
         public float Distance(Vector3 point)
         {
+            if (IsEmpty())
+                return float.PositiveInfinity;
             return Vector3.Distance(point, Snap(point));
         }
 

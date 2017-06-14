@@ -47,8 +47,10 @@ namespace VRSketch2
             }
         }
 
-        Subspace SnapPosition(Vector3 pos)
+        Subspace SnapPosition(Vector3 pos, out EdgeSelection closest_edge)
         {
+            closest_edge = null;
+
             Vector3 rpos = pos - origin;
 
             if (rpos.magnitude < Selection.DISTANCE_VERTEX_MIN)
@@ -62,7 +64,6 @@ namespace VRSketch2
             /* try to snap to a direction */
             float closest = Selection.DISTANCE_EDGE_MIN;
             Vector3 closest_rpos = Vector3.zero;
-            Selection closest_edge = null;
 
             foreach (var edge in edges)
             {
@@ -111,12 +112,14 @@ namespace VRSketch2
         public override void Drag()
         {
             Vector3 pos = render.world.InverseTransformPoint(ctrl.position);
-            var subspace = SnapPosition(pos);
+            EdgeSelection closest_edge;
+            var subspace = SnapPosition(pos, out closest_edge);
             var ptsubspace = new PointedSubspace(subspace, origin);
 
             Vector3 otherpos = render.world.InverseTransformPoint(other_ctrl.position);
             Selection othersel = Selection.FindClosest(otherpos, render.model, color_in_face: true);
             Vector3? dummyedge_from = null;
+            string other_ctrl_hint = null;
             if (othersel != null)
             {
                 AddSelection(othersel, GUIDE_COLOR);
@@ -127,8 +130,26 @@ namespace VRSketch2
 
                     if (othersel is VertexSelection)
                     {
-                        var foot = ((VertexSelection)othersel).vertex.position;
+                        Vertex v = ((VertexSelection)othersel).vertex;
+                        var foot = v.position;
                         otherptsubspace = new PointedSubspace(subspace.NormalSubspace(), foot);
+
+                        if (closest_edge != null && closest_edge.ContainsVertex(v))
+                        {
+                            float distance = Vector3.Distance(v.position, pos);
+                            int cm_distance = Mathf.RoundToInt(distance * 100 / 5) * 5;
+                            other_ctrl_hint = "clamped at " + cm_distance + " cm";
+
+                            var point0 = v.position + cm_distance * 0.01f * (origin - v.position).normalized;
+                            ptsubspace = new PointedSubspace(new Subspace0(), point0);
+                            otherptsubspace = PointedSubspace.Void();
+                        }
+                        else if (subspace is Subspace0)
+                        {
+                            float distance = Vector3.Distance(v.position, origin);
+                            int mm_distance = Mathf.RoundToInt(distance * 1000);
+                            other_ctrl_hint = (mm_distance / 10.0).ToString() + " cm";
+                        }
                     }
                     else if (othersel is EdgeSelection)
                     {
@@ -176,7 +197,10 @@ namespace VRSketch2
             SelectionFinished();
 
             if (other_ctrl.CurrentHoverTracker() == null)
+            {
                 ControllerMode.Get(other_ctrl).UpdatePointer(render, EMode.Guide);
+                other_ctrl.SetControllerHints(trigger: other_ctrl_hint);
+            }
         }
     }
 }

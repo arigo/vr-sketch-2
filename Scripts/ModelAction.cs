@@ -29,6 +29,7 @@ namespace VRSketch2
         {
             SelectionFinished();
             other_ctrl.SetPointer("");
+            other_ctrl.SetControllerHints(/*nothing*/);
         }
 
         struct TempSel { public Selection sel; public Color col; }
